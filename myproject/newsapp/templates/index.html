@@ -1,0 +1,106 @@
+{%load static%}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PALLADIUM</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Bebas+Neue&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static '/style.css' %}">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+    <!-- ░░ NOISE OVERLAY ░░ -->
+    <div class="noise"></div>
+
+    <!-- ░░ SCAN LINE ░░ -->
+    <div class="scanline"></div>
+
+    <!-- ═══════════════════════════════════════════
+         SIDE PANEL
+    ═══════════════════════════════════════════ -->
+    <aside id="infoPanel">
+        <div class="panel-inner">
+
+            <!-- close -->
+            <button id="closePanel" aria-label="Close panel">
+                <span>×</span>
+            </button>
+
+            <!-- country label -->
+            <div class="panel-eyebrow">LIVE DISPATCH</div>
+            <h2 id="countryTitle"></h2>
+            <div class="panel-rule"></div>
+
+            <!-- content -->
+            <div id="panelContent">
+                <p class="panel-hint">Select a marker on the globe to load dispatches.</p>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ═══════════════════════════════════════════
+         ARTICLE MODAL
+    ═══════════════════════════════════════════ -->
+    <div id="articleModal" role="dialog" aria-modal="true" aria-labelledby="modalHeadline">
+        <div class="modal-box">
+
+            <!-- header -->
+            <div class="modal-header">
+                <div class="modal-eyebrow">FULL DISPATCH</div>
+                <h2 id="modalHeadline"></h2>
+                <button id="closeModalBtn" onclick="closeArticleModal()" aria-label="Close article">×</button>
+            </div>
+
+            <!-- body -->
+            <div id="modalContent" class="modal-body"></div>
+
+            <!-- footer -->
+            <div class="modal-footer">
+                <a id="modalLink" href="#" target="_blank" rel="noopener">
+                    <span class="link-icon">↗</span> Read on original source
+                </a>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
+         HERO / TITLE SECTION
+    ═══════════════════════════════════════════ -->
+    <section class="title_section">
+
+        <!-- ambient orbs -->
+        <div class="orb orb--magenta"></div>
+        <div class="orb orb--green"></div>
+        <div class="orb orb--blue"></div>
+
+        <div class="headings">
+            <div class="title-pre">EST. 2025 · GLOBAL INTELLIGENCE</div>
+            <h1>PALLADIUM</h1>
+            <div class="title-rule"></div>
+            <h3>Explore the planet — through headlines</h3>
+            <div class="scroll-cue">
+                <span>SCROLL</span>
+                <div class="scroll-arrow"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════
+         GLOBE SECTION
+    ═══════════════════════════════════════════ -->
+    <section class="space">
+        <div id="canvas-container"></div>
+        <div id="globe-ui">
+            <div class="globe-label">ROTATE · CLICK MARKER</div>
+            <div class="globe-coords" id="globeCoords">LAT — · LON —</div>
+        </div>
+    </section>
+
+    <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+    <script type="module" src="{% static 'main.js' %}"></script>
+</body>
+</html>

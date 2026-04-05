@@ -1,0 +1,7 @@
+pipenv : a better tool for virtual environment creation
+
+To activate the virtual env, type : pipenv shell
+
+now install django
+
+python manage.py runserver 

@@ -1,0 +1,17 @@
+pipenv : a better tool for virtual environment creation
+
+To activate the virtual env, type : pipenv shell
+
+now install django
+
+pip install supabase
+
+python manage.py runserver 
+
+
+
+pip install trafilatura
+
+pip install sentence-transformers
+
+pip install python-dotenv
