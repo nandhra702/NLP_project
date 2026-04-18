@@ -1,3 +1,20 @@
 Globe model to be added
 Django yet again !
 
+pipenv : a better tool for virtual environment creation
+
+To activate the virtual env, type : pipenv shell
+
+now install django
+
+pip install supabase
+
+
+pip install trafilatura
+
+pip install sentence-transformers
+
+pip install python-dotenv
+
+
+python manage.py runserver 
