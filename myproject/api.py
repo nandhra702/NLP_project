@@ -1,6 +1,7 @@
 import os
 import json
 import urllib.request
+import urllib.parse
 import trafilatura
 from supabase import create_client, Client
 from datetime import datetime, timezone
@@ -19,16 +20,14 @@ TABLE_NAME = "world_news"
 # --- Supabase Setup ---
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# Countries with good GNews support use top-headlines + country code
-# Countries with poor English coverage use search query instead
+# All countries now use search mode with keyword queries for consistent,
+# high-quality English coverage. Iran and Germany have been removed.
 COUNTRIES = {
-    "in":  {"name": "India",     "mode": "headlines", "code": "in"},
-    "us":  {"name": "USA",       "mode": "headlines", "code": "us"},
-    "au":  {"name": "Australia", "mode": "headlines", "code": "au"},
-    "cn":  {"name": "China",     "mode": "search",    "q": "China news"},
-    "ru":  {"name": "Russia",    "mode": "search",    "q": "Russia news"},
-    "ir":  {"name": "Iran",      "mode": "search",    "q": "Iran news"},
-    "de":  {"name": "Germany",   "mode": "search",    "q": "Germany news"},
+    "in": {"name": "India",     "mode": "search", "q": "India latest news"},
+    "us": {"name": "USA",       "mode": "search", "q": "United States latest news"},
+    "au": {"name": "Australia", "mode": "search", "q": "Australia latest news"},
+    "cn": {"name": "China",     "mode": "search", "q": "China news"},
+    "ru": {"name": "Russia",    "mode": "search", "q": "Russia news"},
 }
 
 
@@ -41,7 +40,7 @@ def build_url(config: dict) -> str:
             f"&apikey={NEWS_API_KEY}"
         )
     else:
-        # Search mode: query by country name, English only, sorted by date
+        # Search mode: query by keyword, English only, sorted by date
         q = urllib.parse.quote(config["q"])
         return (
             f"https://gnews.io/api/v4/search"
@@ -56,18 +55,18 @@ def fetch_articles_for_country(config: dict) -> list:
     url = build_url(config)
 
     print(f"\n{'='*60}")
-    print(f"🌍 Fetching news for: {name} (mode: {config['mode']})")
+    print(f"Fetching news for: {name} (mode: {config['mode']})")
     print(f"{'='*60}")
 
     try:
         with urllib.request.urlopen(url, timeout=15) as response:
             data = json.loads(response.read().decode("utf-8"))
     except Exception as e:
-        print(f"  ❌ Failed to fetch from GNews for {name}: {e}")
+        print(f"  ERROR: Failed to fetch from GNews for {name}: {e}")
         return []
 
     articles = data.get("articles", [])
-    print(f"  📰 Retrieved {len(articles)} articles from GNews")
+    print(f"  Retrieved {len(articles)} articles from GNews")
     return articles
 
 
@@ -86,30 +85,42 @@ def extract_full_content(article_url: str) -> str | None:
         )
         return content
     except Exception as e:
-        print(f"    ⚠️  Trafilatura error: {e}")
+        print(f"    WARNING: Trafilatura error: {e}")
         return None
 
 
-def store_article(article: dict, country_name: str, country_code: str, seen_urls: set) -> bool:
-    """Upsert a single article. Skips if URL already seen this run."""
+def store_article(
+    article: dict,
+    country_name: str,
+    country_code: str,
+    seen_urls: set,
+    per_country_seen_urls: set,
+) -> bool:
+    """Upsert a single article. Skips if URL already seen globally or within this country."""
     article_url = article.get("url", "").strip()
     if not article_url:
-        print(f"    ⚠️  Skipping article with no URL")
+        print(f"    Skipping article with no URL")
         return False
 
-    # Deduplicate within this run
+    # Deduplicate within this country's batch
+    if article_url in per_country_seen_urls:
+        print(f"    Skipping intra-country duplicate: {article_url[:70]}...")
+        return False
+    per_country_seen_urls.add(article_url)
+
+    # Deduplicate across all countries in this run
     if article_url in seen_urls:
-        print(f"    ⏭️  Skipping duplicate: {article_url[:70]}...")
+        print(f"    Skipping cross-country duplicate: {article_url[:70]}...")
         return False
     seen_urls.add(article_url)
 
-    print(f"    🔍 Extracting content from: {article_url[:80]}...")
+    print(f"    Extracting content from: {article_url[:80]}...")
     full_content = extract_full_content(article_url)
 
     if full_content:
-        print(f"    ✅ Extracted {len(full_content)} characters")
+        print(f"    Extracted {len(full_content)} characters")
     else:
-        print(f"    ⚠️  Falling back to description")
+        print(f"    Falling back to description")
         full_content = article.get("description") or article.get("content") or None
 
     source = article.get("source", {})
@@ -131,23 +142,21 @@ def store_article(article: dict, country_name: str, country_code: str, seen_urls
         supabase.table(TABLE_NAME).insert(row).execute()
         return True
     except Exception as e:
-        print(f"    ❌ Supabase insert error: {e}")
+        print(f"    ERROR: Supabase insert error: {e}")
         return False
 
 
 def main():
-    import urllib.parse  # needed for search mode URL encoding
-
-    print("\n🚀 Starting News Fetcher")
-    print(f"📅 Run time: {datetime.now(timezone.utc).isoformat()}\n")
+    print("\nStarting News Fetcher")
+    print(f"Run time: {datetime.now(timezone.utc).isoformat()}\n")
 
     # Clear all existing data before fresh insert
-    print("🗑️  Clearing existing data from table...")
+    print("Clearing existing data from table...")
     try:
         supabase.table(TABLE_NAME).delete().neq("id", 0).execute()
-        print("✅ Table cleared.")
+        print("Table cleared.")
     except Exception as e:
-        print(f"❌ Failed to clear table: {e}")
+        print(f"ERROR: Failed to clear table: {e}")
         raise SystemExit("Aborting to avoid duplicate data.")
 
     # Track all URLs seen this run to prevent cross-country duplicates
@@ -162,28 +171,31 @@ def main():
         country_name = config["name"]
         country_code = config.get("code", country_key)
 
+        # Fresh set for each country to catch intra-country dupes
+        per_country_seen_urls: set = set()
+
         inserted_this_country = 0
         for idx, article in enumerate(articles, start=1):
             title = article.get("title", "No title")
             print(f"\n  [{idx}/{len(articles)}] {title[:80]}")
 
-            url = article.get("url", "").strip()
-            if url in seen_urls:
-                print(f"    ⏭️  Already seen this run, skipping.")
-                total_skipped += 1
-                continue
-
-            success = store_article(article, country_name, country_code, seen_urls)
+            success = store_article(
+                article,
+                country_name,
+                country_code,
+                seen_urls,
+                per_country_seen_urls,
+            )
             if success:
                 total_inserted += 1
                 inserted_this_country += 1
             else:
-                total_failed += 1
+                total_skipped += 1
 
-        print(f"\n  📊 {country_name}: {inserted_this_country} articles stored")
+        print(f"\n  {country_name}: {inserted_this_country} articles stored")
 
     print(f"\n{'='*60}")
-    print(f"✅ Done!")
+    print(f"Done!")
     print(f"   Inserted/updated : {total_inserted}")
     print(f"   Skipped (dupes)  : {total_skipped}")
     print(f"   Failed           : {total_failed}")

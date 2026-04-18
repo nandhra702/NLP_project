@@ -15,9 +15,9 @@ TABLE_NAME = "world_news"
 SIMILAR_TABLE = "similar_articles"
 TOP_N = 5  # How many similar articles to store per article
 
-print("🤖 Loading embedding model (all-MiniLM-L6-v2)...")
+print(" Loading embedding model (all-MiniLM-L6-v2)...")
 model = SentenceTransformer("all-MiniLM-L6-v2")
-print("✅ Model loaded.\n")
+print("Model loaded.\n")
 
 
 def fetch_all_articles() -> list:
@@ -26,10 +26,10 @@ def fetch_all_articles() -> list:
     try:
         result = supabase.table(TABLE_NAME).select("id, headline, content, description").execute()
         articles = result.data
-        print(f"✅ Fetched {len(articles)} articles.\n")
+        print(f"Fetched {len(articles)} articles.\n")
         return articles
     except Exception as e:
-        print(f"❌ Failed to fetch articles: {e}")
+        print(f"Failed to fetch articles: {e}")
         raise SystemExit("Aborting.")
 
 
@@ -42,7 +42,7 @@ def build_text(article: dict) -> str:
 
 def generate_embeddings(articles: list) -> list:
     """Generate embeddings for all articles in one batch."""
-    print("⚙️  Generating embeddings...")
+    print(" Generating embeddings...")
     texts = [build_text(a) for a in articles]
     embeddings = model.encode(
         texts,
@@ -50,13 +50,13 @@ def generate_embeddings(articles: list) -> list:
         show_progress_bar=True,
         normalize_embeddings=True,  # Normalizing makes cosine similarity = dot product (faster)
     )
-    print(f"✅ Generated {len(embeddings)} embeddings.\n")
+    print(f"Generated {len(embeddings)} embeddings.\n")
     return embeddings
 
 
 def save_embeddings(articles: list, embeddings) -> None:
     """Write each embedding back to its row in world_news."""
-    print("💾 Saving embeddings to Supabase...")
+    print(" Saving embeddings to Supabase...")
     failed = 0
     for article, embedding in zip(articles, embeddings):
         try:
@@ -64,10 +64,10 @@ def save_embeddings(articles: list, embeddings) -> None:
                 {"embedding": embedding.tolist()}
             ).eq("id", article["id"]).execute()
         except Exception as e:
-            print(f"  ❌ Failed to save embedding for article {article['id']}: {e}")
+            print(f"  Failed to save embedding for article {article['id']}: {e}")
             failed += 1
 
-    print(f"✅ Saved embeddings. Failed: {failed}\n")
+    print(f" Saved embeddings. Failed: {failed}\n")
 
 
 def compute_and_store_similar(articles: list, embeddings) -> None:
@@ -78,7 +78,7 @@ def compute_and_store_similar(articles: list, embeddings) -> None:
     """
     import numpy as np
 
-    print("🔁 Computing similarities between all article pairs...")
+    print("Computing similarities between all article pairs...")
 
     # Matrix of shape (n_articles, 384)
     emb_matrix = embeddings  # already a numpy array from model.encode
@@ -91,12 +91,12 @@ def compute_and_store_similar(articles: list, embeddings) -> None:
     print("🗑️  Clearing old similar_articles data...")
     try:
         supabase.table(SIMILAR_TABLE).delete().neq("id", 0).execute()
-        print("✅ Cleared.\n")
+        print("Cleared.\n")
     except Exception as e:
-        print(f"❌ Failed to clear similar_articles: {e}")
+        print(f"Failed to clear similar_articles: {e}")
         raise SystemExit("Aborting.")
 
-    print(f"💾 Storing top {TOP_N} similar articles per article...")
+    print(f" Storing top {TOP_N} similar articles per article...")
     rows_to_insert = []
 
     for i, article in enumerate(articles):
@@ -117,48 +117,20 @@ def compute_and_store_similar(articles: list, embeddings) -> None:
     # Batch insert
     try:
         supabase.table(SIMILAR_TABLE).insert(rows_to_insert).execute()
-        print(f"✅ Inserted {len(rows_to_insert)} similarity pairs.\n")
+        print(f" Inserted {len(rows_to_insert)} similarity pairs.\n")
     except Exception as e:
-        print(f"❌ Failed to insert similarity pairs: {e}")
+        print(f" Failed to insert similarity pairs: {e}")
 
-
-def print_sample_recommendations(articles: list) -> None:
-    """Print a few example recommendations to verify it's working."""
-    print("="*60)
-    print("🔍 Sample Recommendations (first 3 articles):")
-    print("="*60)
-
-    for article in articles[:3]:
-        print(f"\n📰 Source: [{article['headline'][:70]}]")
-        try:
-            result = (
-                supabase.table(SIMILAR_TABLE)
-                .select("similar_article_id, similarity_score")
-                .eq("article_id", article["id"])
-                .order("similarity_score", desc=True)
-                .execute()
-            )
-            pairs = result.data
-            for pair in pairs:
-                # Fetch the similar article's headline
-                sim = supabase.table(TABLE_NAME).select("headline, country").eq("id", pair["similar_article_id"]).execute()
-                if sim.data:
-                    h = sim.data[0]["headline"]
-                    c = sim.data[0]["country"]
-                    score = pair["similarity_score"]
-                    print(f"   → [{score:.3f}] ({c}) {h[:70]}")
-        except Exception as e:
-            print(f"  ❌ Could not fetch recommendations: {e}")
 
 
 def main():
-    print("\n🚀 Starting Embedding Generator & Similarity Engine")
-    print(f"📅 Run time: {datetime.now(timezone.utc).isoformat()}\n")
+    print("\n Starting Embedding Generator & Similarity Engine")
+    print(f" Run time: {datetime.now(timezone.utc).isoformat()}\n")
 
     # 1. Fetch all articles
     articles = fetch_all_articles()
     if not articles:
-        raise SystemExit("❌ No articles found. Run fetch_news.py first.")
+        raise SystemExit(" No articles found. Run fetch_news.py first.")
 
     # 2. Generate embeddings
     embeddings = generate_embeddings(articles)
@@ -169,10 +141,8 @@ def main():
     # 4. Compute similarities and populate similar_articles
     compute_and_store_similar(articles, embeddings)
 
-    # 5. Print sample output
-    print_sample_recommendations(articles)
 
-    print("\n✅ All done! Your similar_articles table is ready.")
+    print("\ All done! ")
     print("="*60)
 
 

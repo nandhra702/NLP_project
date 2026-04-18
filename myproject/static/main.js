@@ -3,9 +3,10 @@
 //  Three.js globe + Supabase live news + similar articles
 // ═══════════════════════════════════════════════════════
 
+
 // ── Supabase init ──────────────────────────────────────
-const SUPABASE_URL = "https://efxvszgpxdkmmlkeexyb.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVmeHZzemdweGRrbW1sa2VleHliIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MjA2NDEsImV4cCI6MjA5MDA5NjY0MX0.OcG3Xm5-NEFEcIew1I2M-zUTRgrrG4V27ZOCytVzKFM";
+const SUPABASE_URL = "";
+const SUPABASE_KEY = "";
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ── Scene ──────────────────────────────────────────────
@@ -263,6 +264,7 @@ let currentNewsItems = [];
 
 // ── Side panel — fetch from Supabase ─────────────────
 async function openSidePanel(countryName) {
+    console.log("🔥 openSidePanel called with:", countryName);
     const panel   = document.getElementById("infoPanel");
     const title   = document.getElementById("countryTitle");
     const content = document.getElementById("panelContent");
